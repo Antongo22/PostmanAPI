@@ -1,0 +1,79 @@
+using Microsoft.EntityFrameworkCore;
+using PostmanAPI.Application.DTOs;
+using PostmanAPI.Application.Services;
+using PostmanAPI.Domain.Entities;
+using PostmanAPI.Infrastructure.Data;
+using BCrypt.Net;
+
+namespace PostmanAPI.Infrastructure.Services;
+
+public class UserService : IUserService
+{
+    private readonly AppDbContext _context;
+
+    public UserService(AppDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task<PagedResultDto<UserResponseDto>> GetUsersAsync(int page, int pageSize)
+    {
+        var totalCount = await _context.Users.CountAsync();
+        var users = await _context.Users
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(u => new UserResponseDto(u.Id, u.Name, u.Email, u.CreatedAt))
+            .ToListAsync();
+
+        var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+
+        return new PagedResultDto<UserResponseDto>(users, page, pageSize, totalCount, totalPages);
+    }
+
+    public async Task<UserResponseDto?> GetUserByIdAsync(int id)
+    {
+        var user = await _context.Users.FindAsync(id);
+        return user == null ? null : new UserResponseDto(user.Id, user.Name, user.Email, user.CreatedAt);
+    }
+
+    public async Task<UserResponseDto> CreateUserAsync(CreateUserDto createUserDto)
+    {
+        var passwordHash = BCrypt.Net.BCrypt.HashPassword(createUserDto.Password);
+
+        var user = new User
+        {
+            Name = createUserDto.Name,
+            Email = createUserDto.Email,
+            PasswordHash = passwordHash,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _context.Users.Add(user);
+        await _context.SaveChangesAsync();
+
+        return new UserResponseDto(user.Id, user.Name, user.Email, user.CreatedAt);
+    }
+
+    public async Task<UserResponseDto?> UpdateUserAsync(int id, UpdateUserDto updateUserDto)
+    {
+        var user = await _context.Users.FindAsync(id);
+        if (user == null) return null;
+
+        user.Name = updateUserDto.Name;
+        user.Email = updateUserDto.Email;
+
+        await _context.SaveChangesAsync();
+
+        return new UserResponseDto(user.Id, user.Name, user.Email, user.CreatedAt);
+    }
+
+    public async Task<bool> DeleteUserAsync(int id)
+    {
+        var user = await _context.Users.FindAsync(id);
+        if (user == null) return false;
+
+        _context.Users.Remove(user);
+        await _context.SaveChangesAsync();
+        return true;
+    }
+}
