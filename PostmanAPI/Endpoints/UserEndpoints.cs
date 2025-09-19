@@ -49,16 +49,31 @@ public static class UserEndpoints
         .Produces<UserResponseDto>(201)
         .Produces<ErrorResponseDto>(400);
 
-        users.MapPut("/{id:int}", async (int id, [FromBody] UpdateUserDto updateUserDto, IUserService userService) =>
+        users.MapPatch("/{id:int}", async (int id, [FromBody] PatchUserDto patchUserDto, IUserService userService) =>
         {
-            var user = await userService.UpdateUserAsync(id, updateUserDto);
-            return user == null 
-                ? Results.NotFound(new ErrorResponseDto("User not found", 404))
-                : Results.Ok(user);
+            try
+            {
+                // Validate that at least one field is provided
+                if (string.IsNullOrWhiteSpace(patchUserDto.Name) && string.IsNullOrWhiteSpace(patchUserDto.Email))
+                {
+                    return Results.BadRequest(new ErrorResponseDto("At least one field (Name or Email) must be provided", 400));
+                }
+
+                var user = await userService.PatchUserAsync(id, patchUserDto);
+                return user == null 
+                    ? Results.NotFound(new ErrorResponseDto("User not found", 404))
+                    : Results.Ok(user);
+            }
+            catch (Exception ex)
+            {
+                return Results.BadRequest(new ErrorResponseDto(ex.Message, 400));
+            }
         })
-        .WithName("UpdateUser")
-        .WithSummary("Update user")
+        .WithName("PatchUser")
+        .WithSummary("Частично обновить пользователя")
+        .WithDescription("Частично обновляет информацию о пользователе. Можно передать только те поля, которые нужно изменить (Name и/или Email).\n\n**Тело запроса:** JSON с полями для обновления\n\n**Возвращает:** Обновленный пользователь")
         .Produces<UserResponseDto>(200)
+        .Produces<ErrorResponseDto>(400)
         .Produces<ErrorResponseDto>(404);
 
         users.MapDelete("/{id:int}", async (int id, IUserService userService) =>
