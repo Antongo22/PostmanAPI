@@ -49,16 +49,31 @@ public static class ProductEndpoints
         .Produces<ProductResponseDto>(201)
         .Produces<ErrorResponseDto>(400);
 
-        products.MapPut("/{id:int}", async (int id, [FromBody] UpdateProductDto updateProductDto, IProductService productService) =>
+        products.MapPatch("/{id:int}", async (int id, [FromBody] PatchProductDto patchProductDto, IProductService productService) =>
         {
-            var product = await productService.UpdateProductAsync(id, updateProductDto);
-            return product == null 
-                ? Results.NotFound(new ErrorResponseDto("Product not found", 404))
-                : Results.Ok(product);
+            try
+            {
+                // Validate that at least one field is provided
+                if (string.IsNullOrWhiteSpace(patchProductDto.Name) && !patchProductDto.Price.HasValue)
+                {
+                    return Results.BadRequest(new ErrorResponseDto("At least one field (Name or Price) must be provided", 400));
+                }
+
+                var product = await productService.PatchProductAsync(id, patchProductDto);
+                return product == null 
+                    ? Results.NotFound(new ErrorResponseDto("Product not found", 404))
+                    : Results.Ok(product);
+            }
+            catch (Exception ex)
+            {
+                return Results.BadRequest(new ErrorResponseDto(ex.Message, 400));
+            }
         })
-        .WithName("UpdateProduct")
-        .WithSummary("Update product")
+        .WithName("PatchProduct")
+        .WithSummary("Частично обновить продукт")
+        .WithDescription("Частично обновляет информацию о продукте. Можно передать только те поля, которые нужно изменить (Name и/или Price).\n\n**Тело запроса:** JSON с полями для обновления\n\n**Возвращает:** Обновленный продукт")
         .Produces<ProductResponseDto>(200)
+        .Produces<ErrorResponseDto>(400)
         .Produces<ErrorResponseDto>(404);
 
         products.MapDelete("/{id:int}", async (int id, IProductService productService) =>

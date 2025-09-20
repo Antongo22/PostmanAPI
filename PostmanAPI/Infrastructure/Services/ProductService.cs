@@ -67,6 +67,32 @@ public class ProductService : IProductService
         return new ProductResponseDto(product.Id, product.Name, product.Price, product.CreatedAt);
     }
 
+    public async Task<ProductResponseDto?> PatchProductAsync(int id, PatchProductDto patchProductDto)
+    {
+        var product = await _context.Products.FindAsync(id);
+        if (product == null) return null;
+
+        // Update name only if provided
+        if (!string.IsNullOrWhiteSpace(patchProductDto.Name))
+        {
+            product.Name = patchProductDto.Name;
+        }
+
+        // Update price only if provided
+        if (patchProductDto.Price.HasValue)
+        {
+            if (patchProductDto.Price.Value <= 0)
+            {
+                throw new ArgumentException("Price must be greater than 0");
+            }
+            product.Price = patchProductDto.Price.Value;
+        }
+
+        await _context.SaveChangesAsync();
+
+        return new ProductResponseDto(product.Id, product.Name, product.Price, product.CreatedAt);
+    }
+
     public async Task<bool> DeleteProductAsync(int id)
     {
         var product = await _context.Products.FindAsync(id);
