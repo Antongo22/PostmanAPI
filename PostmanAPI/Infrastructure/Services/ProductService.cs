@@ -22,9 +22,9 @@ public class ProductService : IProductService
         if (!string.IsNullOrEmpty(filter))
         {
             var filterParts = filter.Split(':');
-            if (filterParts.Length == 2 && filterParts[0] == "name")
+            if (filterParts.Length == 2 && filterParts[0].ToLower() == "name")
             {
-                query = query.Where(p => p.Name.Contains(filterParts[1]));
+                query = query.Where(p => p.Name.ToLower().Contains(filterParts[1].ToLower()));
             }
         }
 
